@@ -63,9 +63,9 @@ python tools/build_data.py
 
 ## 部署到 GitHub Pages
 
-推送到 `main` 后，`.github/workflows/pages.yml` 会通过 GitHub Actions 自动发布到 Pages。首次运行 enables Pages 这一步也在工作流里完成。
+仓库使用 GitHub Pages 的 **Deploy from a branch** 方式：分支 `main`、目录 `/ (root)`，推送到 `main` 后自动构建。
 
-另一个选择是发布脚本 `tools/publish_github.py`。它只访问 `api.github.com`，因此在 `github.com` 直连不稳定的网络里也能用：
+也可以在 Settings → Pages 里开启，或使用发布脚本 `tools/publish_github.py`。脚本只访问 `api.github.com`，因此在 `github.com` 直连不稳定的网络里也能用：
 
 1. 创建一个 classic token（勾选 `public_repo`）：  
    https://github.com/settings/tokens/new?scopes=public_repo&description=china-city-atlas
