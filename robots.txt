@@ -1,2 +1,4 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://HOLA-git-1.github.io/china-city-atlas/sitemap.xml

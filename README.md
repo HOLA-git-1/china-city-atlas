@@ -1,5 +1,7 @@
 # 中国城市漫游 · China City Atlas
 
+在线访问：<https://HOLA-git-1.github.io/china-city-atlas/>
+
 一个完全离线的单页网页：从全国 **359 个市级地点**中随机抽取，也可以在地图上自由点选，并在地图上标出当前位置。
 
 ## 打开方式
@@ -61,7 +63,9 @@ python tools/build_data.py
 
 ## 部署到 GitHub Pages
 
-仓库自带发布脚本 `tools/publish_github.py`。它只访问 `api.github.com`，因此在 `github.com` 直连不稳定的网络里也能用：
+推送到 `main` 后，`.github/workflows/pages.yml` 会通过 GitHub Actions 自动发布到 Pages。首次运行 enables Pages 这一步也在工作流里完成。
+
+另一个选择是发布脚本 `tools/publish_github.py`。它只访问 `api.github.com`，因此在 `github.com` 直连不稳定的网络里也能用：
 
 1. 创建一个 classic token（勾选 `public_repo`）：  
    https://github.com/settings/tokens/new?scopes=public_repo&description=china-city-atlas
