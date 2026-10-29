@@ -59,6 +59,22 @@ python tools/build_data.py
 输出 `data/app-data.js`，并打印地点数、省份数等统计。
 `data/taiwan-counties.geojson` 由 taiwan-atlas 的 TopoJSON 经 `topojson-client` 转换而来。
 
+## 部署到 GitHub Pages
+
+仓库自带发布脚本 `tools/publish_github.py`。它只访问 `api.github.com`，因此在 `github.com` 直连不稳定的网络里也能用：
+
+1. 创建一个 classic token（勾选 `public_repo`）：  
+   https://github.com/settings/tokens/new?scopes=public_repo&description=china-city-atlas
+2. 在项目目录运行：
+
+   ```bat
+   python tools\publish_github.py
+   ```
+
+3. 按提示粘贴 token（输入时不显示）。脚本会自动创建仓库、以一次提交上传所有文件、开启 GitHub Pages，并输出站点地址；之后重跑即可更新站点。
+
+也可以完全在网页上手动操作：新建空仓库 → 上传全部文件 → Settings → Pages → Source 选 `Deploy from a branch`、分支 `main`、目录 `/ (root)`。
+
 ## 数据来源与许可
 
 - 中国大陆及港澳行政边界：**阿里云 DataV GeoAtlas**  
