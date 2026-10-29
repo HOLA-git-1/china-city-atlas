@@ -16,6 +16,10 @@
   const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const HISTORY_KEY = "chinaCityAtlas.recent.v1";
   const HISTORY_LIMIT = 6;
+  const FAVORITES_KEY = "chinaCityAtlas.favorites.v1";
+  const FAVORITE_LABELS = { wish: "想去", visited: "去过" };
+  const SHARE_WIDTH = 1080;
+  const SHARE_HEIGHT = 1440;
 
   const els = {
     app: $("app"),
@@ -48,6 +52,17 @@
     historyList: $("historyList"),
     historyEmpty: $("historyEmpty"),
     clearHistory: $("clearHistory"),
+    favoriteCount: $("favoriteCount"),
+    wishCount: $("wishCount"),
+    visitedCount: $("visitedCount"),
+    favoriteList: $("favoriteList"),
+    favoriteEmpty: $("favoriteEmpty"),
+    shareModal: $("shareModal"),
+    shareImage: $("shareImage"),
+    closeShare: $("closeShare"),
+    shareNativeBtn: $("shareNativeBtn"),
+    saveShareBtn: $("saveShareBtn"),
+    shareHint: $("shareHint"),
     placeCount: $("placeCount"),
     aboutBtn: $("aboutBtn"),
     aboutModal: $("aboutModal"),
@@ -76,6 +91,8 @@
     drawing: false,
     drawToken: 0,
     recent: loadRecent(),
+    favorites: loadFavorites(),
+    favoriteTab: "wish",
     searchItems: [],
     searchTotal: 0,
     searchActive: -1,
@@ -437,6 +454,7 @@
     renderMap();
     renderResult();
     renderHistory();
+    renderFavorites();
   }
 
   /* ------------------------------------------------------------------ */
@@ -448,6 +466,9 @@
 
     if (state.selected) {
       const city = state.selected;
+      const favorite = favoriteOf(city);
+      const isWish = favorite && favorite.status === "wish";
+      const isVisited = favorite && favorite.status === "visited";
       els.result.setAttribute("aria-live", "polite");
       els.result.innerHTML =
         '<div class="result-selected">' +
@@ -461,6 +482,23 @@
           '<div class="result-tags">' +
             '<span class="tag tag-accent">当前目的地</span>' +
             '<span class="tag">' + city.provinceShort + " · " + city.type + "</span>" +
+            (favorite
+              ? '<span class="tag tag-saved tag-' + favorite.status + '">' +
+                FAVORITE_LABELS[favorite.status] + "</span>"
+              : "") +
+          "</div>" +
+          '<div class="result-actions">' +
+            '<button class="action-btn' + (isWish ? " is-active" : "") + '" type="button"' +
+              ' data-favorite-status="wish" aria-pressed="' + Boolean(isWish) + '">' +
+              '<span aria-hidden="true">☆</span> 想去' +
+            "</button>" +
+            '<button class="action-btn' + (isVisited ? " is-active" : "") + '" type="button"' +
+              ' data-favorite-status="visited" aria-pressed="' + Boolean(isVisited) + '">' +
+              '<span aria-hidden="true">✓</span> 去过' +
+            "</button>" +
+            '<button class="action-btn action-share" type="button" id="shareResultBtn">' +
+              '<span aria-hidden="true">↗</span> 分享' +
+            "</button>" +
           "</div>" +
         "</div>";
     } else if (state.mode === "province") {
@@ -849,6 +887,554 @@
   }
 
   /* ------------------------------------------------------------------ */
+  /* favorites                                                           */
+  /* ------------------------------------------------------------------ */
+
+  function loadFavorites() {
+    const map = new Map();
+    try {
+      const raw = JSON.parse(window.localStorage.getItem(FAVORITES_KEY) || "{}");
+      if (!raw || typeof raw !== "object") return map;
+      for (const [id, value] of Object.entries(raw)) {
+        const city = cityById.get(String(id));
+        if (!city) continue;
+        const status =
+          value === "visited" || (value && value.status === "visited") ? "visited" : "wish";
+        const ts = value && typeof value === "object" ? Number(value.ts) : NaN;
+        map.set(String(city.id), { city, status, ts: ts || Date.now() });
+      }
+    } catch (error) {
+      /* corrupted or unavailable storage — start fresh */
+    }
+    return map;
+  }
+
+  function saveFavorites() {
+    const payload = {};
+    state.favorites.forEach((entry, id) => {
+      payload[id] = { status: entry.status, ts: entry.ts };
+    });
+    try {
+      window.localStorage.setItem(FAVORITES_KEY, JSON.stringify(payload));
+    } catch (error) {
+      /* localStorage can be unavailable on file:// in some browsers */
+    }
+  }
+
+  function favoriteOf(city) {
+    return city ? state.favorites.get(String(city.id)) || null : null;
+  }
+
+  function removeFavorite(city, options) {
+    options = options || {};
+    const entry = favoriteOf(city);
+    if (!entry) return;
+    state.favorites.delete(String(city.id));
+    saveFavorites();
+    renderResult();
+    renderFavorites();
+    if (!options.silent) {
+      showToast("已从「" + FAVORITE_LABELS[entry.status] + "」移除 · " + city.name);
+    }
+  }
+
+  function toggleFavorite(city, status) {
+    if (!city || (status !== "wish" && status !== "visited")) return;
+    const current = favoriteOf(city);
+    if (current && current.status === status) {
+      removeFavorite(city);
+      return;
+    }
+    state.favorites.set(String(city.id), { city, status, ts: Date.now() });
+    saveFavorites();
+    renderResult();
+    renderFavorites();
+    showToast(
+      (status === "wish" ? "已放进「想去」 · " : "已标记「去过」 · ") + city.name
+    );
+  }
+
+  function renderFavorites() {
+    const counts = { wish: 0, visited: 0 };
+    state.favorites.forEach((entry) => {
+      counts[entry.status] += 1;
+    });
+
+    els.wishCount.textContent = counts.wish;
+    els.visitedCount.textContent = counts.visited;
+    els.favoriteCount.textContent = counts.wish + counts.visited + " 座";
+
+    document.querySelectorAll("[data-favorite-tab]").forEach((button) => {
+      const active = button.dataset.favoriteTab === state.favoriteTab;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-selected", String(active));
+    });
+
+    const entries = [];
+    state.favorites.forEach((entry) => {
+      if (entry.status === state.favoriteTab) entries.push(entry);
+    });
+    entries.sort((a, b) => b.ts - a.ts);
+
+    els.favoriteList.innerHTML = "";
+    els.favoriteEmpty.hidden = entries.length > 0;
+    els.favoriteEmpty.textContent =
+      state.favoriteTab === "wish"
+        ? "在结果卡上点「想去」，把城市收进行囊"
+        : "去过的地方会留在这里";
+
+    entries.forEach((entry) => {
+      const city = entry.city;
+
+      const row = document.createElement("div");
+      row.className = "fav-item";
+      row.setAttribute("role", "listitem");
+
+      const main = document.createElement("button");
+      main.className = "fav-main";
+      main.type = "button";
+      main.setAttribute("aria-label", "前往 " + city.name);
+
+      const mark = document.createElement("span");
+      mark.className = "fav-mark";
+      mark.setAttribute("aria-hidden", "true");
+      mark.textContent = entry.status === "wish" ? "想" : "过";
+
+      const text = document.createElement("span");
+      text.className = "fav-text";
+
+      const name = document.createElement("span");
+      name.className = "fav-name";
+      name.textContent = city.name;
+
+      const meta = document.createElement("span");
+      meta.className = "fav-province";
+      meta.textContent = city.province + " · " + city.type;
+
+      text.appendChild(name);
+      text.appendChild(meta);
+      main.appendChild(mark);
+      main.appendChild(text);
+
+      const remove = document.createElement("button");
+      remove.className = "fav-remove";
+      remove.type = "button";
+      remove.setAttribute("aria-label", "从行囊中移除 " + city.name);
+      remove.textContent = "×";
+
+      main.addEventListener("click", () => {
+        chooseCity(city, { silent: true });
+        showToast("已抵达 · " + city.name);
+      });
+      remove.addEventListener("click", () => {
+        removeFavorite(city);
+      });
+
+      row.appendChild(main);
+      row.appendChild(remove);
+      els.favoriteList.appendChild(row);
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* share card                                                          */
+  /* ------------------------------------------------------------------ */
+
+  function shareFileName(city) {
+    return "中国城市漫游-" + city.name + ".png";
+  }
+
+  function roundedRectPath(ctx, x, y, width, height, radius) {
+    if (typeof ctx.roundRect === "function") {
+      ctx.beginPath();
+      ctx.roundRect(x, y, width, height, radius);
+      return;
+    }
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+  }
+
+  function canvasToBlob(canvas) {
+    return new Promise((resolve) => {
+      if (canvas.toBlob) {
+        canvas.toBlob((blob) => resolve(blob), "image/png");
+      } else {
+        resolve(null);
+      }
+    });
+  }
+
+  function drawSpacedText(ctx, text, x, y, spacing) {
+    if (!spacing) {
+      ctx.fillText(text, x, y);
+      return;
+    }
+    let width = 0;
+    for (const char of text) width += ctx.measureText(char).width + spacing;
+    width -= spacing;
+    let cursor = x - width / 2;
+    ctx.textAlign = "left";
+    for (const char of text) {
+      ctx.fillText(char, cursor, y);
+      cursor += ctx.measureText(char).width + spacing;
+    }
+    ctx.textAlign = "center";
+  }
+
+  function collectProvincePolygons(city) {
+    const fc = DATA.provinceCities[city.provinceCode];
+    if (!fc) return [];
+
+    const features = fc.features.filter((feature) => {
+      // Hainan's full province spans down to ~4°N; when looking at an
+      // island city, leave out 三沙's far-flung islets so the island
+      // doesn't collapse into a dot.
+      if (
+        city.provinceCode === "460000" &&
+        String(city.id) !== "460300" &&
+        String(feature.properties.adcode) === "460300"
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    const polygons = [];
+    for (const feature of features) {
+      const geometry = feature.geometry;
+      if (!geometry) continue;
+      const groups =
+        geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+      for (const rings of groups) {
+        if (!rings || !rings.length) continue;
+        polygons.push({
+          rings,
+          highlighted: String(feature.properties.adcode) === String(city.id),
+        });
+      }
+    }
+    return polygons;
+  }
+
+  function drawProvinceSilhouette(ctx, city, box) {
+    const polygons = collectProvincePolygons(city);
+    if (!polygons.length) return false;
+
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    let midLat = 0;
+    let pointCount = 0;
+
+    for (const polygon of polygons) {
+      for (const ring of polygon.rings) {
+        for (const point of ring) {
+          midLat += point[1];
+          pointCount += 1;
+        }
+      }
+    }
+    if (!pointCount) return false;
+    midLat /= pointCount;
+
+    const cosine = Math.cos((midLat * Math.PI) / 180) || 1;
+    const raw = (lng, lat) => ({ x: lng * cosine, y: -lat });
+
+    for (const polygon of polygons) {
+      for (const ring of polygon.rings) {
+        for (const point of ring) {
+          const projected = raw(point[0], point[1]);
+          if (projected.x < minX) minX = projected.x;
+          if (projected.x > maxX) maxX = projected.x;
+          if (projected.y < minY) minY = projected.y;
+          if (projected.y > maxY) maxY = projected.y;
+        }
+      }
+    }
+
+    const spanX = maxX - minX || 1;
+    const spanY = maxY - minY || 1;
+    const scale = Math.min(box.w / spanX, box.h / spanY);
+    const offsetX = box.x + (box.w - spanX * scale) / 2 - minX * scale;
+    const offsetY = box.y + (box.h - spanY * scale) / 2 - minY * scale;
+    const project = (lng, lat) => {
+      const projected = raw(lng, lat);
+      return { x: projected.x * scale + offsetX, y: projected.y * scale + offsetY };
+    };
+
+    const drawGroup = (polygon) => {
+      ctx.beginPath();
+      for (const ring of polygon.rings) {
+        ring.forEach((point, index) => {
+          const p = project(point[0], point[1]);
+          if (index === 0) ctx.moveTo(p.x, p.y);
+          else ctx.lineTo(p.x, p.y);
+        });
+        ctx.closePath();
+      }
+      if (polygon.highlighted) {
+        ctx.fillStyle = "rgba(196, 71, 47, .18)";
+        ctx.fill("evenodd");
+        ctx.strokeStyle = "#c4472f";
+        ctx.lineWidth = 5;
+        ctx.lineJoin = "round";
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = "rgba(232, 223, 208, .78)";
+        ctx.fill("evenodd");
+        ctx.strokeStyle = "rgba(150, 132, 108, .55)";
+        ctx.lineWidth = 1.6;
+        ctx.stroke();
+      }
+    };
+
+    polygons.filter((polygon) => !polygon.highlighted).forEach(drawGroup);
+    polygons.filter((polygon) => polygon.highlighted).forEach(drawGroup);
+
+    // Marker for the chosen city, or for municipalities whose province
+    // geometry is split into districts with no matching adcode.
+    const marker = project(city.center[0], city.center[1]);
+    ctx.beginPath();
+    ctx.arc(marker.x, marker.y, 13, 0, Math.PI * 2);
+    ctx.strokeStyle = "#c4472f";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(marker.x, marker.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = "#c4472f";
+    ctx.fill();
+
+    return true;
+  }
+
+  function buildShareCanvas(city) {
+    const canvas = document.createElement("canvas");
+    canvas.width = SHARE_WIDTH;
+    canvas.height = SHARE_HEIGHT;
+    const ctx = canvas.getContext("2d");
+    const W = SHARE_WIDTH;
+    const H = SHARE_HEIGHT;
+    const serif = '"Songti SC","STSong","SimSun","Noto Serif SC",serif';
+    const sans = '"Microsoft YaHei","PingFang SC","Noto Sans SC",sans-serif';
+    const mono = '"Cascadia Mono",Consolas,"SFMono-Regular",monospace';
+    const accent = "#c4472f";
+    const ink = "#211d18";
+    const inkSoft = "#443c32";
+    const muted = "#837767";
+    const muted2 = "#a29685";
+    const line = "rgba(200, 185, 163, .9)";
+
+    // Paper background with a faint grid, echoing the site.
+    ctx.fillStyle = "#f8f4ec";
+    ctx.fillRect(0, 0, W, H);
+    const glow = ctx.createRadialGradient(W * 0.2, 0, 0, W * 0.2, 0, H);
+    glow.addColorStop(0, "rgba(255, 253, 247, .9)");
+    glow.addColorStop(1, "rgba(238, 231, 219, .55)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.strokeStyle = "rgba(106, 88, 63, .06)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= W; x += 44) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, H);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= H; y += 44) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(W, y);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = line;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(44, 44, W - 88, H - 88);
+    ctx.strokeStyle = "rgba(196, 71, 47, .35)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(56, 56, W - 112, H - 112);
+
+    // Header: seal + wordmark + English line.
+    ctx.fillStyle = accent;
+    roundedRectPath(ctx, 92, 92, 62, 62, 12);
+    ctx.fill();
+    ctx.fillStyle = "#fbf6eb";
+    ctx.font = "500 38px " + serif;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("城", 123, 125);
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = ink;
+    ctx.font = "600 30px " + serif;
+    ctx.fillText("中国城市漫游", 176, 124);
+    ctx.fillStyle = muted2;
+    ctx.font = "400 14px " + sans;
+    drawSpacedText(ctx, "CHINA CITY ATLAS", 358, 148, 3.4);
+
+    ctx.textAlign = "right";
+    ctx.fillStyle = muted2;
+    ctx.font = "400 14px " + mono;
+    ctx.fillText("VOL. " + String(DATA.counts.places).padStart(3, "0"), W - 92, 120);
+
+    // Province silhouette.
+    const mapBox = { x: 104, y: 220, w: W - 208, h: 610 };
+    const hasMap = drawProvinceSilhouette(ctx, city, mapBox);
+
+    // Small caption above the name.
+    ctx.textAlign = "center";
+    ctx.fillStyle = muted2;
+    ctx.font = "400 14px " + mono;
+    drawSpacedText(ctx, hasMap ? "THE PROVINCE, AND ONE CITY" : "ONE CITY, ONE JOURNEY", W / 2, 880, 3.2);
+
+    // City name, shrinking for long names.
+    let nameSize = 112;
+    ctx.font = "600 " + nameSize + "px " + serif;
+    while (ctx.measureText(city.name).width > W - 240 && nameSize > 56) {
+      nameSize -= 4;
+      ctx.font = "600 " + nameSize + "px " + serif;
+    }
+    ctx.fillStyle = ink;
+    ctx.fillText(city.name, W / 2, 1000);
+
+    ctx.fillStyle = inkSoft;
+    ctx.font = "400 26px " + sans;
+    ctx.fillText(city.province + " · " + city.type, W / 2, 1054);
+
+    ctx.fillStyle = muted2;
+    ctx.font = "400 16px " + mono;
+    ctx.fillText(
+      formatCoords(city.center) + "  ·  " + formatShareDate(new Date()),
+      W / 2,
+      1098
+    );
+
+    ctx.strokeStyle = line;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(W / 2 - 150, 1148);
+    ctx.lineTo(W / 2 + 150, 1148);
+    ctx.stroke();
+
+    // Tagline + footer.
+    ctx.fillStyle = accent;
+    ctx.font = "500 17px " + sans;
+    drawSpacedText(ctx, "随机抽中的下一站", W / 2, 1200, 4);
+
+    ctx.fillStyle = muted;
+    ctx.font = "400 16px " + mono;
+    ctx.fillText("HOLA-git-1.github.io/china-city-atlas", W / 2, 1252);
+
+    // Three small vermilion dots as a footer ornament.
+    [-18, 0, 18].forEach((dx) => {
+      ctx.beginPath();
+      ctx.arc(W / 2 + dx, 1308, 3.2, 0, Math.PI * 2);
+      ctx.fillStyle = "rgba(196, 71, 47, .55)";
+      ctx.fill();
+    });
+
+    return canvas;
+  }
+
+  function formatShareDate(date) {
+    const pad = (value) => String(value).padStart(2, "0");
+    return date.getFullYear() + "." + pad(date.getMonth() + 1) + "." + pad(date.getDate());
+  }
+
+  let shareCanvas = null;
+
+  function openShare() {
+    if (!state.selected) return;
+    shareCanvas = buildShareCanvas(state.selected);
+    els.shareImage.src = shareCanvas.toDataURL("image/png");
+    els.shareImage.alt = state.selected.name + " 的城市分享卡片";
+    els.shareModal.hidden = false;
+    els.closeShare.focus();
+
+    const native = window.NativeShare && window.NativeShare.available;
+    els.saveShareBtn.hidden = Boolean(native);
+    els.shareNativeBtn.textContent = native ? "分享 / 保存到相册" : "分享图片";
+    els.shareHint.textContent = native
+      ? "在系统分享面板里选择相册、微信或文件"
+      : "在手机上也可以长按图片保存";
+  }
+
+  function closeShare() {
+    els.shareModal.hidden = true;
+    shareCanvas = null;
+    if (els.shareImage) els.shareImage.removeAttribute("src");
+  }
+
+  function downloadShare() {
+    if (!shareCanvas) return;
+    const city = state.selected;
+    canvasToBlob(shareCanvas).then((blob) => {
+      if (!blob) {
+        showToast("当前浏览器不支持保存图片");
+        return;
+      }
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = shareFileName(city);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showToast("已保存分享卡片");
+    });
+  }
+
+  function shareViaNative(dataUrl, city) {
+    return window.NativeShare.shareDataUrl(
+      dataUrl,
+      shareFileName(city),
+      city.name + " · 随机抽中的下一站"
+    );
+  }
+
+  function shareCard() {
+    if (!shareCanvas || !state.selected) return;
+    const city = state.selected;
+    const fileName = shareFileName(city);
+    const text = city.name + " · 随机抽中的下一站";
+
+    if (window.NativeShare && window.NativeShare.available) {
+      shareViaNative(shareCanvas.toDataURL("image/png"), city).catch((error) => {
+        if (error && /cancel/i.test(String(error.message || error))) return;
+        showToast("分享未完成，请重试");
+      });
+      return;
+    }
+
+    canvasToBlob(shareCanvas).then(async (blob) => {
+      if (!blob) {
+        downloadShare();
+        return;
+      }
+      const file = new File([blob], fileName, { type: "image/png" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: "中国城市漫游", text });
+          return;
+        } catch (error) {
+          if (error && error.name === "AbortError") return;
+        }
+      }
+      downloadShare();
+    });
+  }
+
+  /* ------------------------------------------------------------------ */
   /* search                                                              */
   /* ------------------------------------------------------------------ */
 
@@ -1084,6 +1670,31 @@
       showToast("足迹已清空");
     });
 
+    els.result.addEventListener("click", (event) => {
+      const favoriteButton = event.target.closest("[data-favorite-status]");
+      if (favoriteButton && state.selected) {
+        toggleFavorite(state.selected, favoriteButton.dataset.favoriteStatus);
+        return;
+      }
+      if (event.target.closest("#shareResultBtn")) {
+        openShare();
+      }
+    });
+
+    document.querySelectorAll("[data-favorite-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        state.favoriteTab = button.dataset.favoriteTab;
+        renderFavorites();
+      });
+    });
+
+    els.shareNativeBtn.addEventListener("click", shareCard);
+    els.saveShareBtn.addEventListener("click", downloadShare);
+    els.closeShare.addEventListener("click", closeShare);
+    els.shareModal.addEventListener("click", (event) => {
+      if (event.target === els.shareModal) closeShare();
+    });
+
     els.aboutBtn.addEventListener("click", openAbout);
     els.closeAbout.addEventListener("click", closeAbout);
     els.aboutModal.addEventListener("click", (event) => {
@@ -1091,7 +1702,10 @@
     });
 
     document.addEventListener("keydown", (event) => {
-      if (event.key === "Escape" && !els.aboutModal.hidden) {
+      if (event.key !== "Escape") return;
+      if (!els.shareModal.hidden) {
+        closeShare();
+      } else if (!els.aboutModal.hidden) {
         closeAbout();
       }
     });
@@ -1131,7 +1745,32 @@
   /* init                                                                */
   /* ------------------------------------------------------------------ */
 
+  function handleNativeBack() {
+    if (!els.shareModal.hidden) {
+      closeShare();
+      return true;
+    }
+    if (!els.aboutModal.hidden) {
+      closeAbout();
+      return true;
+    }
+    if (!els.searchResults.hidden) {
+      closeSearch();
+      return true;
+    }
+    if (state.drawing) {
+      cancelDraw();
+      return true;
+    }
+    if (state.mode === "province") {
+      goNational();
+      return true;
+    }
+    return false;
+  }
+
   function init() {
+    window.handleNativeBack = handleNativeBack;
     ensureChinaMap();
     chart = echarts.init(els.map, null, { renderer: "canvas" });
     chart.on("click", onMapClick);

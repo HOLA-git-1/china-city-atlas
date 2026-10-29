@@ -17,8 +17,10 @@
 - **地图浏览**：全国 → 省份逐层进入；点击城市即选中；滚轮缩放，`+ / − / ◎` 控制缩放与重置。
 - **搜索**：输入城市名或省份名，`↑ ↓` 选择、`Enter` 确认、`Esc` 关闭。
 - **最近到访**：最近 6 个目的地保存在 `localStorage`，点击可快速回到。
+- **我的行囊**：把城市标记为「想去」或「去过」，在侧栏分栏查看、点击回到，记录保存在 `localStorage`。
+- **分享卡片**：为当前城市生成一张 1080×1440 的分享图，包含省份轮廓、城市名、坐标和日期；网页端可下载或用系统分享，App 内调用原生分享面板。
 - **三沙**：海南视图默认聚焦本岛，底部「三沙市 · 南海诸岛 →」可跳转到南海诸岛视图并选中三沙市。
-- **响应式**：桌面双栏、移动端单栏布局。
+- **响应式**：桌面双栏、移动端单栏布局；App 内适配刘海屏安全区。
 
 ## 数据范围
 
@@ -32,7 +34,10 @@
 ```
 index.html              页面结构
 styles.css              纸墨朱砂视觉系统与响应式布局
-app.js                  地图渲染、抽取、搜索、历史记录等逻辑
+app.js                  地图渲染、抽取、搜索、收藏、分享等逻辑
+native-share.js         Capacitor 原生分享桥（esbuild 产物，已提交）
+native/
+  share.js              原生分享桥源码
 assets/
   og-cover.png          社交分享封面（1200×630）
 data/
@@ -45,6 +50,12 @@ lib/
   echarts.min.js        ECharts 5.6.0
 tools/
   build_data.py         数据打包脚本
+  prepare-www.mjs       为 Capacitor 准备精简的 www/ 目录
+  generate_android_icons.py  生成启动图标与启动屏
+android/                Capacitor 生成的 Android 工程
+capacitor.config.json   App 包名、名称、webDir
+package.json            Capacitor / 原生分享依赖与构建脚本
+.github/workflows/android.yml  云端构建 debug APK
 robots.txt              允许搜索引擎抓取
 LICENSE                 MIT
 tmp/                    开发期测试脚本与截图（未纳入版本库）
@@ -78,6 +89,28 @@ python tools/build_data.py
 3. 按提示粘贴 token（输入时不显示）。脚本会自动创建仓库、以一次提交上传所有文件、开启 GitHub Pages，并输出站点地址；之后重跑即可更新站点。
 
 也可以完全在网页上手动操作：新建空仓库 → 上传全部文件 → Settings → Pages → Source 选 `Deploy from a branch`、分支 `main`、目录 `/ (root)`。
+
+## 打包安卓 App（Capacitor）
+
+网页代码原样复用，Capacitor 只提供原生外壳和分享能力，不重写界面。
+
+```batch
+npm install
+npm run sync
+```
+
+- **云端构建（推荐）**：推送到 `main` 后，GitHub Actions 的 **Build Android APK** 会自动运行；在 Actions 运行页面下载 `china-city-atlas-debug`，解压得到 `app-debug.apk`。
+- **本地构建**：安装 Android Studio（含 SDK）后运行 `npm run android`，APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。
+
+debug APK 使用调试签名，可直接安装到手机，适合自用和内测。App 内所有页面与数据都是本地文件，断网可用；分享按钮会调起系统分享面板，网页端则使用 Web Share 或直接下载图片。
+
+### 上架商店前的准备
+
+当前产物是内测用 debug APK。若要上架：
+
+- **Google Play**：开发者账号、隐私政策、正式签名；新个人账号还需完成 12 人 × 14 天的封闭测试。
+- **国内安卓商店**：通常需要软件著作权、App 备案（绑定已 ICP 备案的域名和境内服务器），以及地图合规材料（审图号/测绘资质）。本项目地图为行政区划示意，发布前请自行评估合规要求。
+- **iOS**：需要 macOS 构建环境与 Apple 开发者账号；中国区上架同样涉及 ICP 备案。
 
 ## 数据来源与许可
 

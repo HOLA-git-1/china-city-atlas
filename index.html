@@ -2,10 +2,11 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>中国城市漫游 · 随机抽一座城</title>
   <meta name="description" content="从全国 359 个城市与地区中随机抽取一座，在地图上遇见它。">
   <meta name="theme-color" content="#f7f2e8">
+  <meta name="color-scheme" content="light">
   <link rel="canonical" href="https://HOLA-git-1.github.io/china-city-atlas/">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="中国城市漫游">
@@ -138,6 +139,28 @@
           <p class="search-hint" id="searchHint">也可以直接点击地图上的省份与城市</p>
         </section>
 
+        <section class="card favorites-card">
+          <div class="card-head compact">
+            <div>
+              <p class="eyebrow">MY PACK</p>
+              <h2>我的行囊</h2>
+            </div>
+            <span class="tiny-count" id="favoriteCount">0 座</span>
+          </div>
+          <div class="fav-tabs" role="tablist" aria-label="收藏分类">
+            <button class="fav-tab is-active" id="tabWish" type="button" role="tab"
+                    aria-selected="true" data-favorite-tab="wish">
+              想去 <b id="wishCount">0</b>
+            </button>
+            <button class="fav-tab" id="tabVisited" type="button" role="tab"
+                    aria-selected="false" data-favorite-tab="visited">
+              去过 <b id="visitedCount">0</b>
+            </button>
+          </div>
+          <div class="fav-list" id="favoriteList" role="list"></div>
+          <p class="fav-empty" id="favoriteEmpty">在结果卡上点「想去」，把城市收进行囊</p>
+        </section>
+
         <section class="card history-card">
           <div class="card-head compact">
             <div>
@@ -159,11 +182,31 @@
       <p class="eyebrow">ABOUT THIS ATLAS</p>
       <h2 id="aboutTitle">去一座未曾去过的城</h2>
       <p>随机范围覆盖全国 333 个地级行政区、4 个直辖市、2 个特别行政区，以及台湾地区 20 个县市，共 <b>359</b> 个城市与地区。</p>
-      <p>滚轮缩放、拖拽平移。点击省份进入，点击城市直接选择；也可以在右侧搜索框里输入城市名或省份。</p>
+      <p>滚轮缩放、拖拽平移。点击省份进入，点击城市直接选择；也可以在右侧搜索框里输入城市名或省份。选中的城市可以收藏进「我的行囊」，或生成一张分享卡片。</p>
       <div class="modal-meta">
         <span>行政区划边界 · 阿里云 DataV GeoAtlas</span>
         <span>台湾县市边界 · taiwan-atlas</span>
       </div>
+    </div>
+  </div>
+
+  <div class="share-backdrop" id="shareModal" hidden>
+    <div class="share-sheet" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+      <div class="share-head">
+        <div>
+          <p class="eyebrow">SHARE THE JOURNEY</p>
+          <h2 id="shareTitle">分享这张城市卡片</h2>
+        </div>
+        <button class="modal-close" id="closeShare" type="button" aria-label="关闭">×</button>
+      </div>
+      <div class="share-preview">
+        <img id="shareImage" alt="城市分享卡片">
+      </div>
+      <div class="share-actions">
+        <button class="share-primary" id="shareNativeBtn" type="button">分享图片</button>
+        <button class="share-secondary" id="saveShareBtn" type="button">保存图片</button>
+      </div>
+      <p class="share-hint" id="shareHint">在手机上也可以长按图片保存</p>
     </div>
   </div>
 
@@ -173,6 +216,7 @@
 
   <script src="lib/echarts.min.js"></script>
   <script src="data/app-data.js"></script>
+  <script src="native-share.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -1,0 +1,65 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "styles.css"
+      - "app.js"
+      - "native-share.js"
+      - "native/**"
+      - "lib/**"
+      - "data/app-data.js"
+      - "assets/**"
+      - "capacitor.config.json"
+      - "package.json"
+      - "package-lock.json"
+      - "android/**"
+      - "tools/prepare-www.mjs"
+      - ".github/workflows/android.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync web assets and plugins
+        run: npm run sync
+
+      - name: Build debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: china-city-atlas-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

@@ -1,0 +1,13 @@
+{
+  "appId": "io.github.holagit.chinacityatlas",
+  "appName": "中国城市漫游",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#f7f2e8",
+    "adjustMarginsForEdgeToEdge": "auto"
+  }
+}
