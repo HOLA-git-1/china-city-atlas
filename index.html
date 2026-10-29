@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>中国城市漫游 · 随机抽一座城</title>
+  <meta name="description" content="从全国 359 个城市与地区中随机抽取一座，在地图上遇见它。">
+  <meta name="theme-color" content="#f7f2e8">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="中国城市漫游">
+  <meta property="og:title" content="中国城市漫游 · 随机抽一座城">
+  <meta property="og:description" content="从全国 359 个城市与地区中随机抽取一座，在地图上遇见它。">
+  <meta property="og:image" content="assets/og-cover.png">
+  <meta property="og:locale" content="zh_CN">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23c4472f'/%3E%3Ctext x='32' y='45' font-size='36' text-anchor='middle' fill='%23f8f3e9' font-family='serif'%3E城%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <a class="brand" href="#" id="brandHome" aria-label="回到全国地图">
+        <span class="seal" aria-hidden="true">城</span>
+        <span class="brand-text">
+          <span class="brand-title">中国城市漫游</span>
+          <span class="brand-sub">CHINA CITY ATLAS</span>
+        </span>
+      </a>
+      <div class="topbar-right">
+        <div class="count-pill">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="placeCount">359</span>
+          <span>个城市与地区</span>
+        </div>
+        <button class="icon-btn" id="aboutBtn" type="button" aria-label="关于本站">?</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="map-card" aria-label="地图">
+        <div class="map-head">
+          <nav class="breadcrumb" aria-label="地图层级">
+            <button class="crumb" id="crumbChina" type="button">中国</button>
+            <span class="crumb-sep" id="crumbSep">/</span>
+            <span class="crumb current" id="crumbCurrent">全国</span>
+          </nav>
+          <div class="map-head-right">
+            <button class="province-draw" id="provinceDraw" type="button" hidden>
+              <span aria-hidden="true">↻</span> 本省随机
+            </button>
+            <span class="map-hint" id="mapHint">点击省份，探索城市</span>
+          </div>
+        </div>
+
+        <div class="map-stage" id="mapStage">
+          <div id="map" class="map" role="img" aria-label="中国省级行政区地图"></div>
+
+          <div class="north" aria-hidden="true">
+            <span>N</span>
+            <i></i>
+          </div>
+
+          <div class="map-controls" aria-label="地图缩放控制">
+            <button id="zoomIn" type="button" aria-label="放大地图">+</button>
+            <button id="zoomOut" type="button" aria-label="缩小地图">−</button>
+            <button id="resetView" type="button" aria-label="重置地图视图">◎</button>
+          </div>
+
+          <div class="map-footer">
+            <div class="legend" id="legend" aria-hidden="true"></div>
+            <div class="footer-tools">
+              <button class="sansha-chip" id="sanshaChip" type="button" hidden>
+                三沙市 · 南海诸岛 <span aria-hidden="true">→</span>
+              </button>
+              <span class="map-credit">边界数据 · 阿里云 DataV</span>
+            </div>
+          </div>
+
+          <div class="map-drawing" id="mapDrawing" aria-hidden="true">
+            <div class="compass">
+              <div class="compass-ring"></div>
+              <span>寻</span>
+            </div>
+            <p>正在穿越山河…</p>
+          </div>
+
+          <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        </div>
+      </section>
+
+      <aside class="sidebar" aria-label="城市选择面板">
+        <section class="card draw-card">
+          <div class="card-head">
+            <div>
+              <p class="eyebrow">RANDOM DESTINATION</p>
+              <h2>随机目的地</h2>
+            </div>
+            <span class="stamp" aria-hidden="true">任意</span>
+          </div>
+
+          <div class="result" id="result" aria-live="polite"></div>
+
+          <button class="draw-btn" id="drawBtn" type="button">
+            <span class="draw-icon" aria-hidden="true"><span class="draw-icon-char">抽</span></span>
+            <span class="draw-copy">
+              <strong id="drawLabel">抽一座城</strong>
+              <small id="drawSub">FROM ALL OF CHINA</small>
+            </span>
+            <span class="draw-arrow" aria-hidden="true">↗</span>
+          </button>
+          <p class="draw-note">从全国 <b id="drawCount">359</b> 个城市与地区中随机抽取</p>
+        </section>
+
+        <section class="card search-card">
+          <div class="card-head compact">
+            <div>
+              <p class="eyebrow">EXPLORE FREELY</p>
+              <h2>自由选择</h2>
+            </div>
+            <span class="tiny-count" id="searchCount">359 座</span>
+          </div>
+          <div class="search-wrap">
+            <div class="search-box" id="searchBox">
+              <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7">
+                <circle cx="11" cy="11" r="6.5"></circle>
+                <path d="m16 16 4.2 4.2"></path>
+              </svg>
+              <input id="searchInput" type="text" autocomplete="off" spellcheck="false"
+                     placeholder="输入城市名或省份" aria-label="搜索城市"
+                     role="combobox" aria-expanded="false" aria-controls="searchResults"
+                     aria-autocomplete="list">
+              <button class="clear-btn" id="clearSearch" type="button" aria-label="清空搜索" hidden>×</button>
+            </div>
+            <div class="search-results" id="searchResults" role="listbox" hidden></div>
+          </div>
+          <p class="search-hint" id="searchHint">也可以直接点击地图上的省份与城市</p>
+        </section>
+
+        <section class="card history-card">
+          <div class="card-head compact">
+            <div>
+              <p class="eyebrow">TRAIL</p>
+              <h2>最近到访</h2>
+            </div>
+            <button class="text-btn" id="clearHistory" type="button">清空</button>
+          </div>
+          <div class="history-list" id="historyList"></div>
+          <p class="history-empty" id="historyEmpty">你的足迹会出现在这里</p>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="aboutModal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+      <button class="modal-close" id="closeAbout" type="button" aria-label="关闭">×</button>
+      <p class="eyebrow">ABOUT THIS ATLAS</p>
+      <h2 id="aboutTitle">去一座未曾去过的城</h2>
+      <p>随机范围覆盖全国 333 个地级行政区、4 个直辖市、2 个特别行政区，以及台湾地区 20 个县市，共 <b>359</b> 个城市与地区。</p>
+      <p>滚轮缩放、拖拽平移。点击省份进入，点击城市直接选择；也可以在右侧搜索框里输入城市名或省份。</p>
+      <div class="modal-meta">
+        <span>行政区划边界 · 阿里云 DataV GeoAtlas</span>
+        <span>台湾县市边界 · taiwan-atlas</span>
+      </div>
+    </div>
+  </div>
+
+  <noscript>
+    <div class="noscript">请开启 JavaScript 以使用地图与随机抽取。</div>
+  </noscript>
+
+  <script src="lib/echarts.min.js"></script>
+  <script src="data/app-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

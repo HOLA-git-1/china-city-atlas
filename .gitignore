@@ -1,0 +1,8 @@
+# 开发期测试脚本、截图与本地依赖
+tmp/
+node_modules/
+*.log
+
+# 系统文件
+.DS_Store
+Thumbs.db
