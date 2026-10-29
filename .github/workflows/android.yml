@@ -20,6 +20,9 @@ on:
       - "tools/prepare-www.mjs"
       - ".github/workflows/android.yml"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -72,3 +75,18 @@ jobs:
           name: china-city-atlas-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      - name: Publish APK to latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES="Build ${{ github.run_number }} · commit ${{ github.sha }}"
+          if gh release view apk-latest > /dev/null 2>&1; then
+            gh release upload apk-latest android/app/build/outputs/apk/debug/app-debug.apk --clobber
+            gh release edit apk-latest --notes "$NOTES"
+          else
+            gh release create apk-latest android/app/build/outputs/apk/debug/app-debug.apk \
+              --title "安卓测试包（最新）" \
+              --notes "$NOTES" \
+              --prerelease
+          fi
