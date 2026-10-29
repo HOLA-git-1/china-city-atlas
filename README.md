@@ -99,7 +99,12 @@ npm install
 npm run sync
 ```
 
-- **云端构建（推荐）**：推送到 `main` 后，GitHub Actions 的 **Build Android APK** 会自动运行；在 Actions 运行页面下载 `china-city-atlas-debug`，解压得到 `app-debug.apk`。
+- **直接下载（推荐）**：每次推送后 GitHub Actions 都会构建并把最新的 debug APK 覆盖发布到固定地址，无需登录、无需解压：
+
+  <https://github.com/HOLA-git-1/china-city-atlas/releases/download/apk-latest/app-debug.apk>
+
+  用手机浏览器打开即可下载安装（需允许「安装未知来源应用」）。页面上也可以查看全部版本：<https://github.com/HOLA-git-1/china-city-atlas/releases>
+- **云端构建**：推送到 `main` 后，GitHub Actions 的 **Build Android APK** 会自动运行；在 Actions 运行页面下载 `china-city-atlas-debug`，解压得到 `app-debug.apk`（需要登录）。
 - **本地构建**：安装 Android Studio（含 SDK）后运行 `npm run android`，APK 位于 `android/app/build/outputs/apk/debug/app-debug.apk`。
 
 debug APK 使用调试签名，可直接安装到手机，适合自用和内测。App 内所有页面与数据都是本地文件，断网可用；分享按钮会调起系统分享面板，网页端则使用 Web Share 或直接下载图片。
